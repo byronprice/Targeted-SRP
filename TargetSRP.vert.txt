@@ -1,0 +1,41 @@
+/* TargetSRP.vert.txt */
+
+/* Attributes passed from Screen(): See the ProceduralShadingAPI.m file for infos: */
+attribute vec4 auxParameters0;
+attribute vec4 auxParameters1;
+attribute vec4 auxParameters2;
+attribute vec4 modulateColor;
+
+varying vec4 Grey;
+varying float alpha;
+varying float phase;
+varying float Radius;
+varying float CenterX;
+varying float CenterY;
+varying float spatFreq;
+varying float orientation;
+varying float gamma;
+varying int onOFF;
+
+void main()
+{
+       /* Apply standard geometric transformations to patch: */
+    gl_Position = ftransform();
+    /* gl_TexCoord[0] = gl_MultiTexCoord0; */
+    gl_TexCoord[0] = (gl_TextureMatrix[0] * gl_MultiTexCoord0) + vec4(-0.5, 0.5, 0.0, 0.0);
+
+    /* Pass first and second color to fragment shader: */
+    Grey = modulateColor;
+
+    /* Pass variables to the fragment shader for control of grating: */
+    alpha = auxParameters0[0];
+    phase = auxParameters0[1];
+    Radius = auxParameters0[2];
+    CenterX = auxParameters0[3];
+    CenterY = auxParameters1[0];
+    spatFreq = auxParameters1[1];
+    orientation = auxParameters1[2];
+    gamma = auxParameters1[3];
+    onOFF = auxParameters2[0];
+}
+
