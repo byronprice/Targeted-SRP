@@ -23,7 +23,7 @@ function [] = TargetSRP(AnimalName,holdTime)
 %
 % Created: 2016/08/11 at 24 Cummington, Boston, MA
 %  Byron Price
-% Updated: 2016/08/11
+% Updated: 2016/08/12
 %  By: Byron Price
 
 cd('~/CloudStation/ByronExp/RetinoExp');
@@ -37,7 +37,7 @@ directory = '/home/jglab/Documents/MATLAB/Byron/Targeted-SRP';
 if nargin < 2
     holdTime = 30;
 end
-reps = 100;blocks = 10;
+
 reps = reps-mod(reps,blocks);
 orientation = orientation*pi/180;
 phaseShift = phaseShift*pi/180;
@@ -58,11 +58,12 @@ WaitSecs(10);
 screenid = max(Screen('Screens'));
 % 
 % % Open a fullscreen onscreen window on that display, choose a background
-% % color of 127 = gray with 50% max intensity; 0 = black
-colorRange = 0:1:255;
-[~,index] = min(abs(colorRange.^gama-(255^gama)/2));
-background = colorRange(index)-6; % gray, mean luminance given gamma correction
+% % color of 127 = gray with 50% max intensity; 0 = black;255 = white
+background = 127;
 [win,~] = Screen('OpenWindow', screenid,background);
+
+gammaTable = makeGrayscaleGammaTable(gama,0,255);
+Screen('LoadNormalizedGammaTable',win,gammaTable);
 
 % Switch color specification to use the 0.0 - 1.0 range
 Screen('ColorRange', win, 1);
@@ -110,7 +111,7 @@ display(sprintf('\nEstimated time: %3.2f minutes',estimatedTime));
 % component range between 0.0 and 1.0, based on Contrast between 0 and 1
 % create all textures in the same window (win), each of the appropriate
 % size
-Grey = 0.5^(1/gama);
+Grey = 0.5;
 
 Screen('BlendFunction',win,GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 
@@ -134,7 +135,7 @@ WaitSecs(holdTime);
 
 % Animation loop
 for ii=1:numStimuli
-    for jj=7:numRadii
+    for jj=1:numRadii
         for kk=1:blocks
             vbl = Screen('Flip',win);
             phase = 0;
@@ -144,8 +145,7 @@ for ii=1:numStimuli
                 Screen('DrawTexture', win,gratingTex,[],[],...
                     [],[],[],[Grey Grey Grey Grey],...
                     [], [],[alpha(ii,jj),phase,...
-                    Radii(ii,jj),centerVals(1),centerVals(2),spatFreq,orientation,gama,...
-                    onOFF(ii),0,0,0]);
+                    Radii(ii,jj),centerVals(1),centerVals(2),spatFreq,orientation,onOFF(ii)]);
                 % Request stimulus onset
                 vbl = Screen('Flip', win,vbl-ifi/2+stimTime);
                 usb.strobeEventWord(stimNums(ii,jj));
@@ -172,3 +172,23 @@ save(fileName,'centerVals','Radii','reps','stimTime','numStimuli',...
 Screen('CloseAll');
 end
 
+function gammaTable = makeGrayscaleGammaTable(gamma,blackSetPoint,whiteSetPoint)
+% Generates a 256x3 gamma lookup table suitable for use with the
+% psychtoolbox Screen('LoadNormalizedGammaTable',win,gammaTable) command
+% 
+% gammaTable = makeGrayscaleGammaTable(gamma,blackSetPoint,whiteSetPoint)
+%
+%   gamma defines the level of gamma correction (1.8 or 2.2 common)
+%   blackSetPoint should be the highest value that results in a non-unique
+%   luminance value on the monitor being used (sometimes values 0,1,2, all
+%   produce the same black pixel value; set to zero if this is not a
+%   concern)
+%   whiteSetPoint should be the lowest value that returns a non-unique
+%   luminance value (deal with any saturation at the high end)
+% 
+%   Both black and white set points should be defined on a 0:255 scale
+
+gamma = max([gamma 1e-4]); % handle zero gamma case
+gammaVals = linspace(blackSetPoint/255,whiteSetPoint/255,256).^(1./gamma);
+gammaTable = repmat(gammaVals(:),1,3);
+end

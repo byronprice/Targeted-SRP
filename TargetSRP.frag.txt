@@ -11,7 +11,6 @@ varying float CenterX;
 varying float CenterY;
 varying float spatFreq;
 varying float orientation;
-varying float gamma;
 varying float onOFF;
 
 void main()
@@ -24,7 +23,7 @@ void main()
     float y = pos[1]-CenterY;
 
     float orient_vec = cos(orientation-twopi/4.0)*x+sin(orientation-twopi/4.0)*y;
-    float mix_coeff = pow(0.5+0.5*sin(twopi*spatFreq*orient_vec+phase),1.0/gamma);
+    float mix_coeff = 0.5+0.5*sin(twopi*spatFreq*orient_vec+phase);
     float kernel = exp(-(x*x+y*y)/(Radius*Radius/4.0));
 
     if (onOFF == 0.0) {
