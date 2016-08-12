@@ -15,7 +15,7 @@ varying float CenterY;
 varying float spatFreq;
 varying float orientation;
 varying float gamma;
-varying int onOFF;
+varying float onOFF;
 
 void main()
 {

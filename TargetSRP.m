@@ -4,7 +4,10 @@ function [] = TargetSRP(AnimalName,holdTime)
 %   gratings with an alpha mask that decays over a varying range of radii. 
 %   For each radius, there will be an ON center stimulus (you see the 
 %   grating within a circle of that radius and grey beyond) and an OFF center 
-%   stimulus (you see the grating beyond the circle and grey within).
+%   stimulus (you see the grating beyond the circle and grey within). Must
+%   have previously used the Retinotopy.m and MapRetinotopy.m files to
+%   determine the retinotopic location of the LFP recording electrode being
+%   used.
 %
 % INPUT: Obligatory-
 %        AnimalName - animal's unique identifier as a number, e.g. 45602
@@ -17,6 +20,7 @@ function [] = TargetSRP(AnimalName,holdTime)
 % OUTPUT: a file with stimulus parameters named TargetSRPDate_AnimalName
 %           e.g. TargetSRP20160708_12345.mat , to be saved on CloudStation
 %           under '~/CloudStation/ByronExp/SRP'
+%
 % Created: 2016/08/11 at 24 Cummington, Boston, MA
 %  Byron Price
 % Updated: 2016/08/11
@@ -33,8 +37,9 @@ directory = '/home/jglab/Documents/MATLAB/Byron/Targeted-SRP';
 if nargin < 2
     holdTime = 30;
 end
+reps = 100;blocks = 10;
 reps = reps-mod(reps,blocks);
-orient = orient*pi/180;
+orientation = orientation*pi/180;
 phaseShift = phaseShift*pi/180;
 
 Date = datetime('today','Format','yyyy-MM-dd');
@@ -49,28 +54,14 @@ usb = usb1208FSPlusClass;
 display(usb);
 WaitSecs(10);
 
-% usb = ttlInterfaceClass.getTTLInterface;
-% if ~usb.validateInterface
-%     handleWarning('TTL Interface validation failed',true,'TTL Warning',[],true);
-% end
-% usb.stopRecording; % for some reason, doesn't start unless previously stopped
-
-% sio = screenInterfaceClass.returnInterface;
-% sio.openScreen;
-% win = sio.window;
-% ifi = sio.slack*2;
-% mp = sio.getMonitorProfile;
-% w_pixels = mp.cols;
-% h_pixels = mp.rows;
-% w_mm = 1e3*mp.screen_width;
-% h_mm = 1e3*mp.screen_height;
-
 % % Choose screen with maximum id - the secondary display:
 screenid = max(Screen('Screens'));
 % 
 % % Open a fullscreen onscreen window on that display, choose a background
 % % color of 127 = gray with 50% max intensity; 0 = black
-background = 127; % gray, mean luminance
+colorRange = 0:1:255;
+[~,index] = min(abs(colorRange.^gama-(255^gama)/2));
+background = colorRange(index)-6; % gray, mean luminance given gamma correction
 [win,~] = Screen('OpenWindow', screenid,background);
 
 % Switch color specification to use the 0.0 - 1.0 range
@@ -94,7 +85,7 @@ mmPerPixel = conv_factor;
 conv_factor = 1/conv_factor;
 
 degreeRadii = zeros(numStimuli,numRadii);
-for ii=1:numSizes
+for ii=1:numRadii
     degreeRadii(:,ii) = 2^(ii-1);
 end
 % perform unit conversions
@@ -112,14 +103,14 @@ alpha = ones(numStimuli,numRadii);
 % 0 for ON center, 1 for OFF center
 onOFF = [0,1];
 
-estimatedTime = ((stimTime*reps/blocks+holdTime)*blocks)*numSizes*numStimuli/60;
+estimatedTime = ((stimTime*reps/blocks+holdTime)*blocks)*numRadii*numStimuli/60;
 display(sprintf('\nEstimated time: %3.2f minutes',estimatedTime));
 
 % Define first and second ring color as RGBA vector with normalized color
 % component range between 0.0 and 1.0, based on Contrast between 0 and 1
 % create all textures in the same window (win), each of the appropriate
 % size
-Grey = 0.5;
+Grey = 0.5^(1/gama);
 
 Screen('BlendFunction',win,GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 
@@ -143,7 +134,7 @@ WaitSecs(holdTime);
 
 % Animation loop
 for ii=1:numStimuli
-    for jj=1:numRadii
+    for jj=7:numRadii
         for kk=1:blocks
             vbl = Screen('Flip',win);
             phase = 0;
@@ -153,13 +144,13 @@ for ii=1:numStimuli
                 Screen('DrawTexture', win,gratingTex,[],[],...
                     [],[],[],[Grey Grey Grey Grey],...
                     [], [],[alpha(ii,jj),phase,...
-                    Radii(ii,jj),centerVals(1),centerVals(2),spatFreq,orient,gama,...
+                    Radii(ii,jj),centerVals(1),centerVals(2),spatFreq,orientation,gama,...
                     onOFF(ii),0,0,0]);
                 % Request stimulus onset
-                vbl = Screen('Flip', win,vbl+ifi/2);usb.strobeEventWord(stimNums(ii,jj));
-                vbl = Screen('Flip',win,vbl-ifi/2+stimTime);
+                vbl = Screen('Flip', win,vbl-ifi/2+stimTime);
+                usb.strobeEventWord(stimNums(ii,jj));
             end
-            usb.strobeEventWord(0);
+            vbl = Screen('Flip',win,vbl+ifi/2);usb.strobeEventWord(0);
             vbl = Screen('Flip',win,vbl-ifi/2+holdTime);
         end
     end
@@ -176,7 +167,7 @@ cd('~/CloudStation/ByronExp/SRP');
 fileName = sprintf('TargetSRP%d_%d.mat',Date,AnimalName);
 save(fileName,'centerVals','Radii','reps','stimTime','numStimuli',...
     'w_pixels','h_pixels','spatFreq','mmPerPixel','holdTime',...
-    'DistToScreen','orient','phaseShift','numRadii','Stimulus')
+    'DistToScreen','orientation','phaseShift','numRadii','Stimulus')
 % Close window
 Screen('CloseAll');
 end
