@@ -134,10 +134,11 @@ usb.strobeEventWord(0);
 WaitSecs(holdTime);
 
 % Animation loop
+vbl = Screen('Flip',win);
 for ii=1:numStimuli
     for jj=1:numRadii
         for kk=1:blocks
-            vbl = Screen('Flip',win);
+            vbl = Screen('Flip',win,vbl+ifi/2);
             phase = 0;
             for ll = 1:reps/blocks
                 phase = phase+phaseShift;
