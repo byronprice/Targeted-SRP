@@ -37,7 +37,7 @@ directory = '/home/jglab/Documents/MATLAB/Byron/Targeted-SRP';
 if nargin < 2
     holdTime = 30;
 end
-
+reps = 10;
 reps = reps-mod(reps,blocks);
 orientation = orientation*pi/180;
 phaseShift = phaseShift*pi/180;
@@ -87,7 +87,7 @@ conv_factor = 1/conv_factor;
 
 degreeRadii = zeros(numStimuli,numRadii);
 for ii=1:numRadii
-    degreeRadii(:,ii) = 2^(ii-1);
+    degreeRadii(:,ii) = 2^(ii-2);
 end
 % perform unit conversions
 Radii = (tan(degreeRadii.*pi./180).*(DistToScreen*10)).*conv_factor; % get number of pixels
