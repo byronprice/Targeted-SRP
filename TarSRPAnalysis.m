@@ -100,11 +100,14 @@ end
 meanResponse = squeeze(mean(Response,4));
 numStats = 3;
 dataStats = struct;
+dataStats(1).name = 'VEP Max';dataStats(2).name = 'VEP Min';dataStats(3).name = 'VEP Max-Min';
 for ii=1:numStats
     dataStats(ii).stdError = zeros(numChans,numStimuli,numRadii);
+    dataStats(ii).latencySEM = zeros(numChans,numStimuli,numRadii);
 end
-dataStats(1).mean = max(meanResponse(:,:,:,maxWin),[],4);
-dataStats(2).mean = -min(meanResponse(:,:,:,minWin),[],4);
+[dataStats(1).mean,dataStats(1).latency] = max(meanResponse(:,:,:,maxWin),[],4);
+[mins,dataStats(2).latency] = min(meanResponse(:,:,:,minWin),[],4);
+dataStats(2).mean = -mins;
 dataStats(3).mean = max(meanResponse(:,:,:,maxWin),[],4)-min(meanResponse(:,:,:,minWin),[],4);
 
 % BOOTSTRAP FOR STANDARD ERROR OF STATISTICS IN PRESENCE OF VISUAL STIMULI
@@ -113,16 +116,19 @@ for ii=1:numChans
     for jj=1:numStimuli
         for kk=1:numRadii
             Tboot = zeros(N,numStats);
+            Latency = zeros(N,numStats);
             for mm=1:N
                 indeces = random('Discrete Uniform',reps,[reps,1]);
                 group = squeeze(Response(ii,jj,kk,indeces,:));
                 meanGroup = mean(group,1);
-                Tboot(mm,1) = max(meanGroup(maxWin));
-                Tboot(mm,2) = -min(meanGroup(minWin));
+                [Tboot(mm,1),Latency(mm,1)] = max(meanGroup(maxWin));
+                [mins,Latency(mm,2)] = min(meanGroup(minWin));
+                Tboot(mm,2) = -mins;
                 Tboot(mm,3) = max(meanGroup(maxWin))-min(meanGroup(minWin));
             end
             for nn=1:numStats
                 dataStats(nn).stdError(ii,jj,kk) = std(Tboot(:,nn));
+                dataStats(nn).latencySEM(ii,jj,kk) = std(Latency(:,nn));
             end
         end
     end
@@ -140,11 +146,14 @@ for ii=1:numStats
     baselineStats(ii).prctile = zeros(numChans,1);
     baselineStats(ii).mean = zeros(numChans,1);
     baselineStats(ii).stdError = zeros(numChans,1);
+    baselineStats(ii).latency = zeros(numChans,1);
+    baselineStats(ii).latencySEM = zeros(numChans,1);
 end
 
+pauseOnset = strobeTimes(svStrobed == 0);nums = length(pauseOnset);
 for ii=1:numChans
     Tboot = zeros(N,numStats);
-    pauseOnset = strobeTimes(svStrobed == 0);nums = length(pauseOnset);
+    Latency = zeros(N,numStats);
     for jj=1:N
         indeces = random('Discrete Uniform',noStimLen,[reps,1]);
         temp = zeros(reps,stimLen);
@@ -154,8 +163,9 @@ for ii=1:numChans
             temp(kk,:) = ChanData(index+indeces(kk):index+indeces(kk)+stimLen-1,ii);
         end
         meanTrace = mean(temp,1);
-        Tboot(jj,1) = max(meanTrace(maxWin));
-        Tboot(jj,2) = -min(meanTrace(minWin));
+        [Tboot(jj,1),Latency(jj,1)] = max(meanTrace(maxWin));
+        [mins,Latency(jj,2)] = min(meanTrace(minWin));
+        Tboot(jj,2) = -mins;
         Tboot(jj,3) = max(meanTrace(maxWin))-min(meanTrace(minWin));
     end
     %figure();histogram(Tboot);
@@ -163,6 +173,8 @@ for ii=1:numChans
         baselineStats(ll).prctile(ii) = quantile(Tboot(:,ll),1-1/100);
         baselineStats(ll).mean(ii) = mean(Tboot(:,ll));
         baselineStats(ll).stdError(ii) = std(Tboot(:,ll));
+        baselineStats(ll).latency(ii) = mean(Latency(:,ll));
+        baselineStats(ll).latencySEM(ii) = std(Latency(:,ll));
     end
 end
 
@@ -187,10 +199,11 @@ for ii=1:numChans
 end
 
 % GRAPHS OF RESPONSES
+h(1) = figure();h(2) = figure();
+count = 1;
 for ii=1:numChans
-    h(ii) = figure();
     for jj=1:numStimuli
-        subplot(1,2,jj);
+        figure(h(1));subplot(2,2,count);
         for kk=1:numStats
             cms = (Radii(jj,:)).*mmPerPixel./10;
             degrees = atan(cms./DistToScreen).*180/pi;
@@ -198,10 +211,20 @@ for ii=1:numChans
                 squeeze(dataStats(kk).stdError(ii,jj,:)),'LineWidth',2);
             hold on;
         end
-        title(Stimulus(jj).name);
-        legend('VEP Max','VEP Min','VEP Max-Min');
-        xlabel('Stimulus Radius (log2[degrees of visual space])');
+        title(strcat(Stimulus(jj).name,sprintf(', Channel: %d',ii)));
+        legend(dataStats(1).name,dataStats(2).name,dataStats(3).name);
+        xlabel('Stimulus Radius (degrees of visual space [log scale])');
         ylabel('VEP Magnitude(\muVolts)')
+        ax = gca;
+        ax.XTickLabel = [0,degrees,2*degrees(end)];
+        
+        figure(h(2));subplot(2,2,count);
+        title(strcat(Stimulus(jj).name,sprintf(', Channel: %d',ii)));
+        imagesc(1:stimLen,log2(degrees),squeeze(meanResponse(ii,jj,:,:)));
+        set(gca,'YDir','normal');w=colorbar;ylabel(w,'VEP Magnitude (\muV)');
+        colormap('jet');xlabel('Time from phase shift (milliseconds)');
+        ylabel('Stimulus Radius (log2[degrees of visual space])');
+        count = count+1;
     end
 end
 savefig(h,sprintf('TargetSRP%d_%d.fig',Date,AnimalName));
