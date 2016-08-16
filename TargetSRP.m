@@ -23,7 +23,7 @@ function [] = TargetSRP(AnimalName,holdTime)
 %
 % Created: 2016/08/11 at 24 Cummington, Boston, MA
 %  Byron Price
-% Updated: 2016/08/15
+% Updated: 2016/08/16
 %  By: Byron Price
 
 cd('~/CloudStation/ByronExp/RetinoExp');
@@ -37,7 +37,7 @@ directory = '/home/jglab/Documents/MATLAB/Byron/Targeted-SRP';
 if nargin < 2
     holdTime = 30;
 end
-
+reps = 10;
 reps = reps-mod(reps,blocks);
 orientation = orientation*pi/180;
 phaseShift = phaseShift*pi/180;
