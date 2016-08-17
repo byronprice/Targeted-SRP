@@ -14,7 +14,7 @@ function [] = TarSRPAnalysis(AnimalName,Date)
 %
 % Created: 2016/08/15, 24 Cummington Mall, Boston, MA
 %  Byron Price
-% Updated: 2016/08/15
+% Updated: 2016/08/17
 %  By: Byron Price
 
 cd ('~/CloudStation/ByronExp/SRP');
@@ -55,11 +55,10 @@ ChanData = zeros(dataLength,numChans);
 preAmpGain = 1;
 for ii=1:numChans
     voltage = 1000.*((allad{1,Chans(ii)}).*SlowPeakV)./(0.5*(2^SlowADResBits)*adgains(Chans(ii))*preAmpGain);
-    temp = smooth(voltage,0.013*sampleFreq);
     n = 30;
     lowpass = 100/(sampleFreq/2); % fraction of Nyquist frequency
     blo = fir1(n,lowpass,'low',hamming(n+1));
-    ChanData(:,ii) = filter(blo,1,temp);
+    ChanData(:,ii) = filter(blo,1,voltage);
 end
 
 timeStamps = 0:1/sampleFreq:dataLength/sampleFreq-1/sampleFreq;
@@ -72,10 +71,12 @@ strobeTimes = tsevs{1,strobeStart};
 stimLen = round((0.2)*sampleFreq); % 200 milliseconds
 minWin = round(0.04*sampleFreq):1:round(0.1*sampleFreq);
 maxWin = round(.1*sampleFreq):1:round(0.2*sampleFreq);
+smoothKernel = 4;
 
 % COLLECT DATA IN THE PRESENCE OF VISUAL STIMULI
 numPhases = round((2*pi)/phaseShift);
 Response = zeros(numChans,numStimuli,numRadii,reps,stimLen);
+meanResponse = zeros(numChans,numStimuli,numRadii,stimLen);
 for ii=1:numChans
     for jj=1:numStimuli
         for kk=1:numRadii
@@ -89,6 +90,8 @@ for ii=1:numChans
                 Response(ii,jj,kk,ll,:) = temp;
                 clear temp;
             end
+            temp = mean(squeeze(Response(ii,jj,kk,:,:)),1);
+            meanResponse(ii,jj,kk,:) = smooth(temp,smoothKernel);
         end
     end
 end
@@ -97,7 +100,6 @@ end
 % max(meanResponse), T3 = max-min (meanResponse)
 % in the interval from 0 to ~ 0.2 seconds after an image is flashed on the 
 % screen, this is a measure of the size of a VEP
-meanResponse = squeeze(mean(Response,4));
 numStats = 3;
 dataStats = struct;
 dataStats(1).name = 'VEP Max';dataStats(2).name = 'VEP Min';dataStats(3).name = 'VEP Max-Min';
@@ -220,7 +222,7 @@ for ii=1:numChans
         
         figure(h(2));subplot(2,2,count);
         title(strcat(Stimulus(jj).name,sprintf(', Channel: %d',ii)));
-        imagesc(1:stimLen,log2(degrees),squeeze(meanResponse(ii,jj,:,:)));
+        surf(1:stimLen,log2(degrees),squeeze(meanResponse(ii,jj,:,:)));
         set(gca,'YDir','normal');w=colorbar;ylabel(w,'VEP Magnitude (\muV)');
         colormap('jet');xlabel('Time from phase shift (milliseconds)');
         ylabel('Stimulus Radius (log2[degrees of visual space])');
