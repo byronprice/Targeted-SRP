@@ -23,16 +23,16 @@ function [] = TargetSRP(AnimalName,holdTime)
 %
 % Created: 2016/08/11 at 24 Cummington, Boston, MA
 %  Byron Price
-% Updated: 2016/08/16
+% Updated: 2016/08/17
 %  By: Byron Price
 
-cd('~/CloudStation/ByronExp/RetinoExp');
+cd('~/CloudStation/ByronExp/Retino');
 load(sprintf('RetinoMap%d.mat',AnimalName));
 
 cd('~/CloudStation/ByronExp/SRP');
 load('SRPvars.mat');
 
-directory = '/home/jglab/Documents/MATLAB/Byron/Targeted-SRP';
+directory = '~/Documents/MATLAB/Byron/Targeted-SRP';
 
 if nargin < 2
     holdTime = 30;
@@ -87,7 +87,7 @@ conv_factor = 1/conv_factor;
 
 degreeRadii = zeros(numStimuli,numRadii);
 for ii=1:numRadii
-    degreeRadii(:,ii) = 2^(ii-1);
+    degreeRadii(:,ii) = 2^(ii);
 end
 % perform unit conversions
 Radii = (tan(degreeRadii.*pi./180).*(DistToScreen*10)).*conv_factor; % get number of pixels
