@@ -23,11 +23,13 @@ function [] = TargetSRP(AnimalName,holdTime)
 %
 % Created: 2016/08/11 at 24 Cummington, Boston, MA
 %  Byron Price
-% Updated: 2016/08/17
+% Updated: 2016/08/18
 %  By: Byron Price
 
 cd('~/CloudStation/ByronExp/Retino');
 load(sprintf('RetinoMap%d.mat',AnimalName));
+
+centerMass = MapParams.centerMass;
 
 cd('~/CloudStation/ByronExp/SRP');
 load('SRPvars.mat');
@@ -97,7 +99,7 @@ temp = (tan((1/spatFreq)*pi/180)*(DistToScreen*10))*conv_factor;
 spatFreq = 1/temp;clear temp;
 
 centerVals = zeros(2,1);
-centerVals(1) = centerMass(Channel,1);centerVals(2) = centerMass(Channel,2);
+centerVals(1) = centerMass.x(Channel);centerVals(2) = centerMass.y(Channel);
 
 alpha = ones(numStimuli,numRadii);
 
