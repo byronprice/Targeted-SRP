@@ -30,6 +30,7 @@ cd('~/CloudStation/ByronExp/Retino');
 load(sprintf('RetinoMap%d.mat',AnimalName));
 
 centerMass = MapParams.centerMass;
+Channel = MapParams.Channel;
 
 cd('~/CloudStation/ByronExp/SRP');
 load('SRPvars.mat');
