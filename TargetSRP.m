@@ -39,7 +39,7 @@ directory = '~/Documents/MATLAB/Byron/Targeted-SRP';
 if nargin < 2
     holdTime = 30;
 end
-reps = 10;
+
 reps = reps-mod(reps,blocks);
 orientation = orientation*pi/180;
 phaseShift = phaseShift*pi/180;
