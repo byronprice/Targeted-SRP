@@ -92,16 +92,18 @@ degreeRadii = zeros(numStimuli,numRadii);
 for ii=1:numRadii
     degreeRadii(:,ii) = 2^(ii+1);
 end
-% perform unit conversions
-Radii = (tan(degreeRadii.*pi./180).*(DistToScreen*10)).*conv_factor; % get number of pixels
-     % that degreeRadius degrees of visual space will occupy
+degreeRadii = reshape(degreeRadii',[numStimuli*numRadii,1]);
 
-% for ii=1:numStimuli
-%     for jj=1:50
-%         indeces = randperm(numRadii,numRadii);
-%         Radii(ii,:) = Radii(ii,indeces);
-%     end
-% end
+% perform unit conversions
+Radii(:,1) = (tan(degreeRadii(:,1).*pi./180).*(DistToScreen*10)).*conv_factor; % get number of pixels
+     % that degreeRadius degrees of visual space will occupy
+Radii = [Radii,[ones(numRadii,1);2*ones(numRadii,1)]];
+for ii=1:numStimuli*numRadii
+    for jj=1:50
+        indeces = randperm(numRadii*numStimuli,numRadii*numStimuli);
+        Radii = Radii(indeces,:);
+    end
+end
 
 temp = (tan((1/spatFreq)*pi/180)*(DistToScreen*10))*conv_factor;
 spatFreq = 1/temp;clear temp;
@@ -109,10 +111,7 @@ spatFreq = 1/temp;clear temp;
 centerVals = zeros(2,1);
 centerVals(1) = centerMass.x(Channel);centerVals(2) = centerMass.y(Channel);
 
-alpha = ones(numStimuli,numRadii);
-
-% 0 for ON center, 1 for OFF center
-onOFF = [0,1];
+alpha = ones(numStimuli*numRadii,1);
 
 estimatedTime = ((stimTime*reps/blocks+holdTime)*blocks)*numRadii*numStimuli/60;
 display(sprintf('\nEstimated time: %3.2f minutes',estimatedTime));
@@ -130,13 +129,7 @@ Priority(9);
 
 % we have event words from 0 to 255, so 3 stimuli and greater than 10
 % radii would break the code
-stimNums = zeros(numStimuli,numRadii);
-for ii=1:numStimuli
-    for jj=1:numRadii
-    mystr = sprintf('%d%d',ii,jj);
-    stimNums(ii,jj) = str2double(mystr);
-    end
-end
+stimNums = 1:(numStimuli*numRadii);
 
 usb.startRecording;
 WaitSecs(1);
@@ -145,25 +138,23 @@ WaitSecs(holdTime);
 
 % Animation loop
 vbl = Screen('Flip',win);
-for ii=1:numStimuli
-    for jj=1:numRadii
-        for kk=1:blocks
-%             vbl = Screen('Flip',win,vbl+ifi/2);
-            phase = 0;
-            for ll = 1:reps/blocks
-                phase = phase+phaseShift;
-                % Draw the procedural texture as any other texture via 'DrawTexture'
-                Screen('DrawTexture', win,gratingTex,[],[],...
-                    [],[],[],[Grey Grey Grey Grey],...
-                    [], [],[alpha(ii,jj),phase,...
-                    Radii(ii,jj),centerVals(1),centerVals(2),spatFreq,orientation,onOFF(ii)]);
-                % Request stimulus onset
-                vbl = Screen('Flip', win,vbl-ifi/2+stimTime);
-                usb.strobeEventWord(stimNums(ii,jj));
-            end
-            vbl = Screen('Flip',win,vbl+ifi/2);usb.strobeEventWord(0);
-            vbl = Screen('Flip',win,vbl-ifi/2+holdTime);
+for ii=1:numStimuli*numRadii
+    for kk=1:blocks
+        %             vbl = Screen('Flip',win,vbl+ifi/2);
+        phase = 0;
+        for ll = 1:reps/blocks
+            phase = phase+phaseShift;
+            % Draw the procedural texture as any other texture via 'DrawTexture'
+            Screen('DrawTexture', win,gratingTex,[],[],...
+                [],[],[],[Grey Grey Grey Grey],...
+                [], [],[alpha(ii),phase,...
+                Radii(ii,1),centerVals(1),centerVals(2),spatFreq,orientation,Radii(ii,2)]);
+            % Request stimulus onset
+            vbl = Screen('Flip', win,vbl-ifi/2+stimTime);
+            usb.strobeEventWord(stimNums(ii));
         end
+        vbl = Screen('Flip',win,vbl+ifi/2);usb.strobeEventWord(0);
+        vbl = Screen('Flip',win,vbl-ifi/2+holdTime);
     end
 end
 WaitSecs(2);
