@@ -40,7 +40,7 @@ directory = '~/Documents/MATLAB/Byron/Targeted-SRP';
 if nargin < 2
     holdTime = 30;
 end
-
+reps = 20;
 reps = reps-mod(reps,blocks);
 orientation = orientation*pi/180;
 phaseShift = phaseShift*pi/180;
@@ -95,6 +95,13 @@ end
 % perform unit conversions
 Radii = (tan(degreeRadii.*pi./180).*(DistToScreen*10)).*conv_factor; % get number of pixels
      % that degreeRadius degrees of visual space will occupy
+
+for ii=1:numStimuli
+    for jj=1:50
+        indeces = randperm(numRadii,numRadii);
+        Radii(ii,:) = Radii(ii,indeces);
+    end
+end
 
 temp = (tan((1/spatFreq)*pi/180)*(DistToScreen*10))*conv_factor;
 spatFreq = 1/temp;clear temp;
