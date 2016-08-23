@@ -90,7 +90,7 @@ conv_factor = 1/conv_factor;
 
 degreeRadii = zeros(numStimuli,numRadii);
 for ii=1:numRadii
-    degreeRadii(:,ii) = 2^(ii);
+    degreeRadii(:,ii) = 2^(ii+1);
 end
 % perform unit conversions
 Radii = (tan(degreeRadii.*pi./180).*(DistToScreen*10)).*conv_factor; % get number of pixels
