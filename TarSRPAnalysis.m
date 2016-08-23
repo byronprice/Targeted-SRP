@@ -68,9 +68,9 @@ if length(timeStamps) ~= dataLength
     return;
 end
 strobeTimes = tsevs{1,strobeStart};
-stimLen = round((0.2)*sampleFreq); % 200 milliseconds
-minWin = round(0.04*sampleFreq):1:round(0.1*sampleFreq);
-maxWin = round(.1*sampleFreq):1:round(0.2*sampleFreq);
+stimLen = round(0.3*sampleFreq); % 200 milliseconds
+minWin = round(0.05*sampleFreq):1:round(0.15*sampleFreq);
+maxWin = round(.1*sampleFreq):1:round(0.25*sampleFreq);
 smoothKernel = 4;
 
 % COLLECT DATA IN THE PRESENCE OF VISUAL STIMULI
@@ -102,7 +102,8 @@ end
 % screen, this is a measure of the size of a VEP
 numStats = 3;
 dataStats = struct;
-dataStats(1).name = 'VEP Max';dataStats(2).name = 'VEP Min';dataStats(3).name = 'VEP Max-Min';
+dataStats(1).name = 'VEP Positivity';dataStats(2).name = 'VEP Negativity';dataStats(3).name = 'VEP Total';
+dataStats(1).specs = '--^k';dataStats(2).specs = ':vr';dataStats(3).specs = '-+c';
 for ii=1:numStats
     dataStats(ii).stdError = zeros(numChans,numStimuli,numRadii);
     dataStats(ii).latencySEM = zeros(numChans,numStimuli,numRadii);
@@ -200,32 +201,42 @@ for ii=1:numChans
     end    
 end
 
+if Channel == 1
+    chans = {'Target','Off-Target'};
+else
+    chans = {'Off-Target','Target'};
+end
 % GRAPHS OF RESPONSES
-h(1) = figure();h(2) = figure();
-count = 1;
+h = figure();
+count = 1;order = [1,2,5,6,3,4,7,8];
 for ii=1:numChans
     for jj=1:numStimuli
-        figure(h(1));subplot(2,2,count);
+        figure(h);subplot(4,2,order(count));
         for kk=1:numStats
             cms = (Radii(jj,:)).*mmPerPixel./10;
             degrees = atan(cms./DistToScreen).*180/pi;
             errorbar(log2(degrees),squeeze(dataStats(kk).mean(ii,jj,:)),...
-                squeeze(dataStats(kk).stdError(ii,jj,:)),'LineWidth',2);
+                squeeze(dataStats(kk).stdError(ii,jj,:)),dataStats(kk).specs,...
+                'LineWidth',2);
             hold on;
         end
-        title(strcat(Stimulus(jj).name,sprintf(', Channel: %d',ii)));
+        title(sprintf('%s, Channel: %s, Animal: %d',Stimulus(jj).name,chans{ii},AnimalName));
         legend(dataStats(1).name,dataStats(2).name,dataStats(3).name);
-        xlabel('Stimulus Radius (degrees of visual space [log scale])');
+        xlabel('Radius (degrees of visual space [log scale])');
         ylabel('VEP Magnitude(\muVolts)')
         ax = gca;
-        ax.XTickLabel = [0,degrees,2*degrees(end)];
-        
-        figure(h(2));subplot(2,2,count);
-        title(strcat(Stimulus(jj).name,sprintf(', Channel: %d',ii)));
-        surf(1:stimLen,log2(degrees),squeeze(meanResponse(ii,jj,:,:)));
+        ax.XTickLabel = [2^(log2(degrees(1))-1),degrees,2^(log2(degrees(end))+1)];
+        count = count+1;
+   
+        figure(h);subplot(4,2,order(count));
+        imagesc(1:stimLen,log2(degrees),squeeze(meanResponse(ii,jj,:,:)));
+        title(sprintf('%s, Channel: %s, Animal: %d',Stimulus(jj).name,chans{ii},AnimalName));
         set(gca,'YDir','normal');w=colorbar;ylabel(w,'VEP Magnitude (\muV)');
         colormap('jet');xlabel('Time from phase shift (milliseconds)');
-        ylabel('Stimulus Radius (log2[degrees of visual space])');
+        ylabel('Radius (degrees of visual space [log scale])');
+        ax = gca;
+        ax.YTickLabel = degrees;
+%         caxis([(-max(max(squeeze(dataStats(2).mean(ii,:,:))))) (max(max(squeeze(dataStats(1).mean(ii,:,:)))))]);
         count = count+1;
     end
 end

@@ -164,8 +164,8 @@ usb.stopRecording;
 Priority(0);
 
 Stimulus = struct('name',cell(numStimuli,1));
-Stimulus(1).name = 'ON center, OFF surround';
-Stimulus(2).name = 'OFF center, ON surround';
+Stimulus(1).name = 'Gabor patch';
+Stimulus(2).name = 'Full-Field Grating with Grey Center';
 
 cd('~/CloudStation/ByronExp/SRP');
 fileName = sprintf('TargetSRP%d_%d.mat',Date,AnimalName);
