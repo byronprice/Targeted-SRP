@@ -14,7 +14,7 @@ function [] = TarSRPAnalysis(AnimalName,Date)
 %
 % Created: 2016/08/15, 24 Cummington Mall, Boston, MA
 %  Byron Price
-% Updated: 2016/08/17
+% Updated: 2016/08/24
 %  By: Byron Price
 
 cd ('~/CloudStation/ByronExp/SRP');
@@ -75,24 +75,20 @@ smoothKernel = 4;
 
 % COLLECT DATA IN THE PRESENCE OF VISUAL STIMULI
 numPhases = round((2*pi)/phaseShift);
-Response = zeros(numChans,numStimuli,numRadii,reps,stimLen);
-meanResponse = zeros(numChans,numStimuli,numRadii,stimLen);
+Response = zeros(numChans,numStimuli*numRadii,reps,stimLen);
+meanResponse = zeros(numChans,numStimuli*numRadii,stimLen);
 for ii=1:numChans
-    for jj=1:numStimuli
-        for kk=1:numRadii
-            mystr = sprintf('%d%d',jj,kk);
-            stimNum = str2double(mystr);
-            stimStrobes = strobeTimes(svStrobed == stimNum);
-            for ll=1:reps
-                stimOnset = stimStrobes(ll);
-                [~,index] = min(abs(timeStamps-stimOnset));
-                temp = ChanData(index:index+stimLen-1,ii);
-                Response(ii,jj,kk,ll,:) = temp;
-                clear temp;
-            end
-            temp = mean(squeeze(Response(ii,jj,kk,:,:)),1);
-            meanResponse(ii,jj,kk,:) = smooth(temp,smoothKernel);
+    for jj=1:numStimuli*numRadii
+        stimStrobes = strobeTimes(svStrobed == jj);
+        for ll=1:reps
+            stimOnset = stimStrobes(ll);
+            [~,index] = min(abs(timeStamps-stimOnset));
+            temp = ChanData(index:index+stimLen-1,ii);
+            Response(ii,jj,ll,:) = temp;
+            clear temp;
         end
+        temp = mean(squeeze(Response(ii,jj,:,:)),1);
+        meanResponse(ii,jj,:) = smooth(temp,smoothKernel);
     end
 end
 
@@ -105,34 +101,32 @@ dataStats = struct;
 dataStats(1).name = 'VEP Positivity';dataStats(2).name = 'VEP Negativity';dataStats(3).name = 'VEP Total';
 dataStats(1).specs = '--^k';dataStats(2).specs = ':vr';dataStats(3).specs = '-+c';
 for ii=1:numStats
-    dataStats(ii).stdError = zeros(numChans,numStimuli,numRadii);
-    dataStats(ii).latencySEM = zeros(numChans,numStimuli,numRadii);
+    dataStats(ii).stdError = zeros(numChans,numStimuli*numRadii);
+    dataStats(ii).latencySEM = zeros(numChans,numStimuli*numRadii);
 end
-[dataStats(1).mean,dataStats(1).latency] = max(meanResponse(:,:,:,maxWin),[],4);
-[mins,dataStats(2).latency] = min(meanResponse(:,:,:,minWin),[],4);
+[dataStats(1).mean,dataStats(1).latency] = max(meanResponse(:,:,:,maxWin),[],3);
+[mins,dataStats(2).latency] = min(meanResponse(:,:,:,minWin),[],3);
 dataStats(2).mean = -mins;
-dataStats(3).mean = max(meanResponse(:,:,:,maxWin),[],4)-min(meanResponse(:,:,:,minWin),[],4);
+dataStats(3).mean = max(meanResponse(:,:,:,maxWin),[],3)-min(meanResponse(:,:,:,minWin),[],3);
 
 % BOOTSTRAP FOR STANDARD ERROR OF STATISTICS IN PRESENCE OF VISUAL STIMULI
 N = 1000;
 for ii=1:numChans
-    for jj=1:numStimuli
-        for kk=1:numRadii
-            Tboot = zeros(N,numStats);
-            Latency = zeros(N,numStats);
-            for mm=1:N
-                indeces = random('Discrete Uniform',reps,[reps,1]);
-                group = squeeze(Response(ii,jj,kk,indeces,:));
-                meanGroup = mean(group,1);
-                [Tboot(mm,1),Latency(mm,1)] = max(meanGroup(maxWin));
-                [mins,Latency(mm,2)] = min(meanGroup(minWin));
-                Tboot(mm,2) = -mins;
-                Tboot(mm,3) = max(meanGroup(maxWin))-min(meanGroup(minWin));
-            end
-            for nn=1:numStats
-                dataStats(nn).stdError(ii,jj,kk) = std(Tboot(:,nn));
-                dataStats(nn).latencySEM(ii,jj,kk) = std(Latency(:,nn));
-            end
+    for jj=1:numStimuli*numRadii
+        Tboot = zeros(N,numStats);
+        Latency = zeros(N,numStats);
+        for mm=1:N
+            indeces = random('Discrete Uniform',reps,[reps,1]);
+            group = squeeze(Response(ii,jj,indeces,:));
+            meanGroup = mean(group,1);
+            [Tboot(mm,1),Latency(mm,1)] = max(meanGroup(maxWin));
+            [mins,Latency(mm,2)] = min(meanGroup(minWin));
+            Tboot(mm,2) = -mins;
+            Tboot(mm,3) = max(meanGroup(maxWin))-min(meanGroup(minWin));
+        end
+        for nn=1:numStats
+            dataStats(nn).stdError(ii,jj) = std(Tboot(:,nn));
+            dataStats(nn).latencySEM(ii,jj) = std(Latency(:,nn));
         end
     end
 end
@@ -162,6 +156,7 @@ for ii=1:numChans
         temp = zeros(reps,stimLen);
         num = random('Discrete Uniform',nums);
         [~,index] = min(abs(timeStamps-pauseOnset(num)));
+        index = index+stimLen;
         for kk=1:reps
             temp(kk,:) = ChanData(index+indeces(kk):index+indeces(kk)+stimLen-1,ii);
         end
@@ -184,18 +179,16 @@ end
 
 % WALD TEST - VEP magnitude significantly greater in presence of a stimulus
 %  than in the absence of a stimulus
-significantStimuli = zeros(numChans,numStimuli,numRadii,numStats);
+significantStimuli = zeros(numChans,numStimuli*numRadii,numStats);
 alpha = 0.05/(numStimuli*numRadii);
 c = norminv(1-alpha,0,1);
 for ii=1:numChans
-    for jj=1:numStimuli
-        for kk=1:numRadii
-            for ll=1:numStats
-                W = (dataStats(ll).mean(ii,jj,kk)-baselineStats(ll).mean(ii))...
-                    /sqrt(dataStats(ll).stdError(ii,jj,kk)^2+baselineStats(ll).stdError(ii)^2);
-                if W > c
-                    significantStimuli(ii,jj,kk,ll) = dataStats(ll).mean(ii,jj,kk); % or equals W itself
-                end
+    for jj=1:numStimuli*numRadii
+        for ll=1:numStats
+            W = (dataStats(ll).mean(ii,jj)-baselineStats(ll).mean(ii))...
+                /sqrt(dataStats(ll).stdError(ii,jj)^2+baselineStats(ll).stdError(ii)^2);
+            if W > c
+                significantStimuli(ii,jj,ll) = dataStats(ll).mean(ii,jj); % or equals W itself
             end
         end
     end    
@@ -212,8 +205,9 @@ count = 1;order = [1,2,5,6,3,4,7,8];
 for ii=1:numChans
     for jj=1:numStimuli
         figure(h);subplot(4,2,order(count));
+        members = Radii(:,2) == jj;
         for kk=1:numStats
-            cms = (Radii(jj,:)).*mmPerPixel./10;
+            cms = (Radii(members,1)).*mmPerPixel./10;
             degrees = atan(cms./DistToScreen).*180/pi;
             errorbar(log2(degrees),squeeze(dataStats(kk).mean(ii,jj,:)),...
                 squeeze(dataStats(kk).stdError(ii,jj,:)),dataStats(kk).specs,...
