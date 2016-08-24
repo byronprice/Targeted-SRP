@@ -23,7 +23,7 @@ function [] = TargetSRP(AnimalName,holdTime)
 %
 % Created: 2016/08/11 at 24 Cummington, Boston, MA
 %  Byron Price
-% Updated: 2016/08/23
+% Updated: 2016/08/24
 %  By: Byron Price
 
 cd('~/CloudStation/ByronExp/Retino');

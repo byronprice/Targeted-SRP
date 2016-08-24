@@ -30,7 +30,7 @@ void main()
         gl_FragColor = vec4(mix_coeff,mix_coeff,mix_coeff,kernel*alpha);
         }
     else {
-        float kernel = exp(-(x*x+y*y)/(2.0*Radius*Radius));
+        float kernel = exp(-(x*x+y*y)/(Radius*Radius/1.0));
         float mask = max(0,1.0-1.05*kernel*alpha);
         gl_FragColor = vec4(mix_coeff,mix_coeff,mix_coeff,mask);
     }
