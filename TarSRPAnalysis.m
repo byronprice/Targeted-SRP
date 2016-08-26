@@ -14,7 +14,7 @@ function [] = TarSRPAnalysis(AnimalName,Date)
 %
 % Created: 2016/08/15, 24 Cummington Mall, Boston, MA
 %  Byron Price
-% Updated: 2016/08/24
+% Updated: 2016/08/25
 %  By: Byron Price
 
 cd ('~/CloudStation/ByronExp/SRP');
@@ -104,10 +104,10 @@ for ii=1:numStats
     dataStats(ii).stdError = zeros(numChans,numStimuli*numRadii);
     dataStats(ii).latencySEM = zeros(numChans,numStimuli*numRadii);
 end
-[dataStats(1).mean,dataStats(1).latency] = max(meanResponse(:,:,:,maxWin),[],3);
-[mins,dataStats(2).latency] = min(meanResponse(:,:,:,minWin),[],3);
+[dataStats(1).mean,dataStats(1).latency] = max(meanResponse(:,:,maxWin),[],3);
+[mins,dataStats(2).latency] = min(meanResponse(:,:,minWin),[],3);
 dataStats(2).mean = -mins;
-dataStats(3).mean = max(meanResponse(:,:,:,maxWin),[],3)-min(meanResponse(:,:,:,minWin),[],3);
+dataStats(3).mean = max(meanResponse(:,:,maxWin),[],3)-min(meanResponse(:,:,minWin),[],3);
 
 % BOOTSTRAP FOR STANDARD ERROR OF STATISTICS IN PRESENCE OF VISUAL STIMULI
 N = 1000;
@@ -209,8 +209,8 @@ for ii=1:numChans
         for kk=1:numStats
             cms = (Radii(members,1)).*mmPerPixel./10;
             degrees = atan(cms./DistToScreen).*180/pi;
-            errorbar(log2(degrees),squeeze(dataStats(kk).mean(ii,jj,:)),...
-                squeeze(dataStats(kk).stdError(ii,jj,:)),dataStats(kk).specs,...
+            errorbar(log2(degrees),squeeze(dataStats(kk).mean(ii,members)),...
+                squeeze(dataStats(kk).stdError(ii,members)),dataStats(kk).specs,...
                 'LineWidth',2);
             hold on;
         end
@@ -223,7 +223,7 @@ for ii=1:numChans
         count = count+1;
    
         figure(h);subplot(4,2,order(count));
-        imagesc(1:stimLen,log2(degrees),squeeze(meanResponse(ii,jj,:,:)));
+        imagesc(1:stimLen,log2(degrees),squeeze(meanResponse(ii,members,:)));
         title(sprintf('%s, Channel: %s, Animal: %d',Stimulus(jj).name,chans{ii},AnimalName));
         set(gca,'YDir','normal');w=colorbar;ylabel(w,'VEP Magnitude (\muV)');
         colormap('jet');xlabel('Time from phase shift (milliseconds)');
