@@ -209,8 +209,14 @@ for ii=1:numChans
         for kk=1:numStats
             cms = (Radii(members,1)).*mmPerPixel./10;
             degrees = atan(cms./DistToScreen).*180/pi;
-            errorbar(log2(degrees),squeeze(dataStats(kk).mean(ii,members)),...
-                squeeze(dataStats(kk).stdError(ii,members)),dataStats(kk).specs,...
+            degrees = degrees';
+            [sortedDegs,indeces] = sort(degrees);
+            Stats = squeeze(dataStats(kk).mean(ii,members));
+            sortedStats = Stats(indeces);
+            Errors = squeeze(dataStats(kk).stdError(ii,members));
+            sortedErrors = Errors(indeces);
+            errorbar(log2(sortedDegs),sortedStats,...
+                sortedErrors,dataStats(kk).specs,...
                 'LineWidth',2);
             hold on;
         end
@@ -219,17 +225,21 @@ for ii=1:numChans
         xlabel('Radius (degrees of visual space [log scale])');
         ylabel('VEP Magnitude(\muVolts)')
         ax = gca;
-        ax.XTickLabel = [2^(log2(degrees(1))-1),degrees,2^(log2(degrees(end))+1)];
+        ax.XTick = [log2(sortedDegs(1))-1,log2(sortedDegs),log2(sortedDegs(end))+1];
+        ax.XTickLabel = [2^(log2(sortedDegs(1))-1),sortedDegs,2^(log2(sortedDegs(end))+1)];
         count = count+1;
    
         figure(h);subplot(4,2,order(count));
-        imagesc(1:stimLen,log2(degrees),squeeze(meanResponse(ii,members,:)));
+        VEP = squeeze(meanResponse(ii,members,:));
+        sortedVEP = VEP(indeces,:);
+        imagesc(1:stimLen,log2(sortedDegs),sortedVEP);
         title(sprintf('%s, Channel: %s, Animal: %d',Stimulus(jj).name,chans{ii},AnimalName));
         set(gca,'YDir','normal');w=colorbar;ylabel(w,'VEP Magnitude (\muV)');
         colormap('jet');xlabel('Time from phase shift (milliseconds)');
         ylabel('Radius (degrees of visual space [log scale])');
         ax = gca;
-        ax.YTickLabel = degrees;
+        ax.YTick = log2(sortedDegs);
+        ax.YTickLabel = sortedDegs;
 %         caxis([(-max(max(squeeze(dataStats(2).mean(ii,:,:))))) (max(max(squeeze(dataStats(1).mean(ii,:,:)))))]);
         count = count+1;
     end
@@ -237,7 +247,7 @@ end
 savefig(h,sprintf('TargetSRP%d_%d.fig',Date,AnimalName));
 save(sprintf('TargetSRPConv%d_%d.mat',Date,AnimalName),'Response',...
     'dataStats','baselineStats','significantStimuli','Stimulus','Radii',...
-    'mmPerPixel','DistToScreen');
+    'mmPerPixel','DistToScreen','meanResponse');
 end
 
 
