@@ -14,7 +14,7 @@ function [] = TarSRPAnalysis(AnimalName,Date)
 %
 % Created: 2016/08/15, 24 Cummington Mall, Boston, MA
 %  Byron Price
-% Updated: 2016/08/25
+% Updated: 2016/08/29
 %  By: Byron Price
 
 cd ('~/CloudStation/ByronExp/SRP');
@@ -73,6 +73,7 @@ minWin = round(0.05*sampleFreq):1:round(0.15*sampleFreq);
 maxWin = round(.1*sampleFreq):1:round(0.25*sampleFreq);
 smoothKernel = 4;
 
+reps = reps-1;
 % COLLECT DATA IN THE PRESENCE OF VISUAL STIMULI
 numPhases = round((2*pi)/phaseShift);
 Response = zeros(numChans,numStimuli*numRadii,reps,stimLen);
@@ -199,6 +200,8 @@ if Channel == 1
 else
     chans = {'Off-Target','Target'};
 end
+
+maxVEP = max(max(dataStats(3).mean));
 % GRAPHS OF RESPONSES
 h = figure();
 count = 1;order = [1,2,5,6,3,4,7,8];
@@ -224,6 +227,7 @@ for ii=1:numChans
         legend(dataStats(1).name,dataStats(2).name,dataStats(3).name);
         xlabel('Radius (degrees of visual space [log scale])');
         ylabel('VEP Magnitude(\muVolts)')
+        axis([(log2(sortedDegs(1))-1) (log2(sortedDegs(end))+1) -50 500]);
         ax = gca;
         ax.XTick = [log2(sortedDegs(1))-1,log2(sortedDegs),log2(sortedDegs(end))+1];
         ax.XTickLabel = [2^(log2(sortedDegs(1))-1),sortedDegs,2^(log2(sortedDegs(end))+1)];
@@ -232,16 +236,21 @@ for ii=1:numChans
         figure(h);subplot(4,2,order(count));
         VEP = squeeze(meanResponse(ii,members,:));
         sortedVEP = VEP(indeces,:);
-        imagesc(1:stimLen,log2(sortedDegs),sortedVEP);
+        shift = 250;
+        for kk=1:length(indeces)
+            plot(1:stimLen,sortedVEP(kk,:)+shift*(kk),'LineWidth',2);
+            hold on;
+        end
         title(sprintf('%s, Channel: %s, Animal: %d',Stimulus(jj).name,chans{ii},AnimalName));
-        set(gca,'YDir','normal');w=colorbar;ylabel(w,'VEP Magnitude (\muV)');
-        colormap('jet');xlabel('Time from phase shift (milliseconds)');
+        xlabel('Time from phase shift (milliseconds)');
         ylabel('Radius (degrees of visual space [log scale])');
+        axis([0 stimLen 0 (shift*length(indeces)+shift)]);
         ax = gca;
-        ax.YTick = log2(sortedDegs);
-        ax.YTickLabel = sortedDegs;
-%         caxis([(-max(max(squeeze(dataStats(2).mean(ii,:,:))))) (max(max(squeeze(dataStats(1).mean(ii,:,:)))))]);
+        ax.YTick = linspace(0,shift*length(indeces)+shift,length(indeces)+2);
+        ax.YTickLabel = [2^(log2(sortedDegs(1))-1),sortedDegs,2^(log2(sortedDegs(end))+1)];
         count = count+1;
+        
+        clear indeces;
     end
 end
 savefig(h,sprintf('TargetSRP%d_%d.fig',Date,AnimalName));

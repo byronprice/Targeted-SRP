@@ -23,7 +23,7 @@ function [] = TargetSRP(AnimalName,holdTime)
 %
 % Created: 2016/08/11 at 24 Cummington, Boston, MA
 %  Byron Price
-% Updated: 2016/08/24
+% Updated: 2016/08/29
 %  By: Byron Price
 
 cd('~/CloudStation/ByronExp/Retino');
@@ -111,6 +111,7 @@ spatFreq = 1/temp;clear temp;
 centerVals = zeros(2,1);
 centerVals(1) = centerMass.x(Channel);centerVals(2) = centerMass.y(Channel);
 
+orientations = linspace(0,165,numStimuli*numRadii);
 alpha = ones(numStimuli*numRadii,1);
 
 estimatedTime = ((stimTime*reps/blocks+holdTime)*blocks)*numRadii*numStimuli/60;
@@ -148,7 +149,7 @@ for ii=1:numStimuli*numRadii
             Screen('DrawTexture', win,gratingTex,[],[],...
                 [],[],[],[Grey Grey Grey Grey],...
                 [], [],[alpha(ii),phase,...
-                Radii(ii,1),centerVals(1),centerVals(2),spatFreq,orientation,Radii(ii,2)]);
+                Radii(ii,1),centerVals(1),centerVals(2),spatFreq,orientations(ii),Radii(ii,2)]);
             % Request stimulus onset
             vbl = Screen('Flip', win,vbl-ifi/2+stimTime);
             usb.strobeEventWord(stimNums(ii));
@@ -169,7 +170,7 @@ cd('~/CloudStation/ByronExp/SRP');
 fileName = sprintf('TargetSRP%d_%d.mat',Date,AnimalName);
 save(fileName,'centerVals','Radii','reps','stimTime','numStimuli',...
     'w_pixels','h_pixels','spatFreq','mmPerPixel','holdTime','Channel',...
-    'DistToScreen','orientation','phaseShift','numRadii','Stimulus')
+    'DistToScreen','orientations','phaseShift','numRadii','Stimulus')
 % Close window
 Screen('CloseAll');
 end
