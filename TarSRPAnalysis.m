@@ -14,7 +14,7 @@ function [] = TarSRPAnalysis(AnimalName,Date)
 %
 % Created: 2016/08/15, 24 Cummington Mall, Boston, MA
 %  Byron Price
-% Updated: 2016/08/29
+% Updated: 2016/09/08
 %  By: Byron Price
 
 cd ('~/CloudStation/ByronExp/SRP');
@@ -69,11 +69,12 @@ if length(timeStamps) ~= dataLength
 end
 strobeTimes = tsevs{1,strobeStart};
 stimLen = round(0.3*sampleFreq); % 200 milliseconds
-minWin = round(0.05*sampleFreq):1:round(0.15*sampleFreq);
+LatWin = round(0.04*sampleFreq):round(0.15*sampleFreq);
+minWin = round(0.04*sampleFreq):round(0.19*sampleFreq);
 maxWin = round(.1*sampleFreq):1:round(0.25*sampleFreq);
 smoothKernel = 4;
+alpha = 0.05;
 
-reps = reps-1;
 % COLLECT DATA IN THE PRESENCE OF VISUAL STIMULI
 numPhases = round((2*pi)/phaseShift);
 Response = zeros(numChans,numStimuli*numRadii,reps,stimLen);
@@ -93,6 +94,15 @@ for ii=1:numChans
     end
 end
 
+LatencyStats = struct;
+[~,temp] = min(Response(:,:,:,LatWin),[],4);
+LatencyStats.mag = mean(Response(:,:,:,round(0.02*sampleFreq):round(0.04*sampleFreq)),4)-min(Response(:,:,:,LatWin),[],4);
+LatencyStats.trials = (temp+LatWin(1)-1)./sampleFreq;
+LatencyStats.mean = zeros(numChans,numStimuli*numRadii);
+LatencyStats.sem = zeros(numChans,numStimuli*numRadii);
+LatencyStats.ci = zeros(numChans,numStimuli*numRadii,2);
+LatFun = @(x,win) max(abs(eCDF(x.*sampleFreq,win)-linspace(0,1,length(win))')); %mad(x,1);
+
 % STATISTICS OF INTEREST are T1 = min(meanResponse), T2 =
 % max(meanResponse), T3 = max-min (meanResponse)
 % in the interval from 0 to ~ 0.2 seconds after an image is flashed on the 
@@ -104,30 +114,46 @@ dataStats(1).specs = '--^k';dataStats(2).specs = ':vr';dataStats(3).specs = '-+c
 for ii=1:numStats
     dataStats(ii).stdError = zeros(numChans,numStimuli*numRadii);
     dataStats(ii).latencySEM = zeros(numChans,numStimuli*numRadii);
+    dataStats(ii).ci = zeros(numChans,numStimuli*numRadii,2);
 end
-[dataStats(1).mean,dataStats(1).latency] = max(meanResponse(:,:,maxWin),[],3);
-[mins,dataStats(2).latency] = min(meanResponse(:,:,minWin),[],3);
+[dataStats(1).mean,maxLats] = max(meanResponse(:,:,maxWin),[],3);
+dataStats(1).latency = (maxLats+maxWin(1)-1)./sampleFreq;
+[mins,minLats] = min(meanResponse(:,:,minWin),[],3);
+dataStats(2).latency = (minLats+minWin(1)-1)./sampleFreq;
 dataStats(2).mean = -mins;
 dataStats(3).mean = max(meanResponse(:,:,maxWin),[],3)-min(meanResponse(:,:,minWin),[],3);
+dataStats(3).latency = dataStats(1).latency-dataStats(2).latency;
 
 % BOOTSTRAP FOR STANDARD ERROR OF STATISTICS IN PRESENCE OF VISUAL STIMULI
-N = 1000;
+N = 2000;
 for ii=1:numChans
     for jj=1:numStimuli*numRadii
         Tboot = zeros(N,numStats);
         Latency = zeros(N,numStats);
+        
+        LatBoot = zeros(N,1);
+        LatencyStats.mean(ii,jj) = LatFun(squeeze(LatencyStats.trials(ii,jj,:)),LatWin);
         for mm=1:N
             indeces = random('Discrete Uniform',reps,[reps,1]);
+            LatGroup = squeeze(LatencyStats.trials(ii,jj,indeces));
+            LatBoot(mm) = LatFun(LatGroup,LatWin);
             group = squeeze(Response(ii,jj,indeces,:));
             meanGroup = mean(group,1);
-            [Tboot(mm,1),Latency(mm,1)] = max(meanGroup(maxWin));
-            [mins,Latency(mm,2)] = min(meanGroup(minWin));
+            [Tboot(mm,1),maxLats] = max(meanGroup(maxWin));
+            Latency(mm,1) = (maxLats+maxWin(1)-1)./sampleFreq;
+            [mins,minLats] = min(meanGroup(minWin));
+            Latency(mm,2) = (minLats+minWin(1)-1)./sampleFreq;
             Tboot(mm,2) = -mins;
             Tboot(mm,3) = max(meanGroup(maxWin))-min(meanGroup(minWin));
+            Latency(mm,3) = Latency(mm,1)-Latency(mm,2);
         end
+%         figure();subplot(2,1,1);histogram(squeeze(LatencyStats.trials(ii,jj,:)));subplot(2,1,2);plot(squeeze(meanResponse(ii,jj,:)));
+        LatencyStats.sem(ii,jj) = std(LatBoot);
+        LatencyStats.ci(ii,jj,:) = [quantile(LatBoot,alpha/2),quantile(LatBoot,1-alpha/2)];
         for nn=1:numStats
             dataStats(nn).stdError(ii,jj) = std(Tboot(:,nn));
             dataStats(nn).latencySEM(ii,jj) = std(Latency(:,nn));
+            dataStats(nn).ci(ii,jj,:) = [quantile(Tboot(:,nn),alpha/2),quantile(Tboot(:,nn),1-alpha/2)];
         end
     end
 end
@@ -136,22 +162,27 @@ end
 %  PLUS MEAN AND STANDARD ERRORS
 %  interspersed stimulus repetitions with holdTime seconds of a blank grey
 %  screen
-N = 1000; % number of bootstrap samples
 noStimLen = holdTime*sampleFreq-stimLen*2;
 
-baselineStats = struct;
+baseLatStats = struct;
+baseLatStats.mean = zeros(numChans,1);
+baseLatStats.sem = zeros(numChans,1);
+baseLatStats.ci = zeros(numChans,2);
+
+baseStats = struct;
 for ii=1:numStats
-    baselineStats(ii).prctile = zeros(numChans,1);
-    baselineStats(ii).mean = zeros(numChans,1);
-    baselineStats(ii).stdError = zeros(numChans,1);
-    baselineStats(ii).latency = zeros(numChans,1);
-    baselineStats(ii).latencySEM = zeros(numChans,1);
+    baseStats(ii).ci = zeros(numChans,2);
+    baseStats(ii).mean = zeros(numChans,1);
+    baseStats(ii).stdError = zeros(numChans,1);
+    baseStats(ii).latency = zeros(numChans,1);
+    baseStats(ii).latencySEM = zeros(numChans,1);
 end
 
 pauseOnset = strobeTimes(svStrobed == 0);nums = length(pauseOnset);
 for ii=1:numChans
     Tboot = zeros(N,numStats);
     Latency = zeros(N,numStats);
+    LatBoot = zeros(N,1);
     for jj=1:N
         indeces = random('Discrete Uniform',noStimLen,[reps,1]);
         temp = zeros(reps,stimLen);
@@ -161,39 +192,53 @@ for ii=1:numChans
         for kk=1:reps
             temp(kk,:) = ChanData(index+indeces(kk):index+indeces(kk)+stimLen-1,ii);
         end
+        [~,minLats] = min(temp(:,LatWin),[],2);
+        minLats = (minLats+LatWin(1)-1)./sampleFreq;
+        LatBoot(jj) = LatFun(minLats,LatWin);
         meanTrace = mean(temp,1);
-        [Tboot(jj,1),Latency(jj,1)] = max(meanTrace(maxWin));
-        [mins,Latency(jj,2)] = min(meanTrace(minWin));
+        [Tboot(jj,1),maxLats] = max(meanTrace(maxWin));
+        Latency(jj,1) = (maxLats+maxWin(1)-1)./sampleFreq;
+        [mins,minLats] = min(meanTrace(minWin));
+        Latency(jj,2) = (minLats+minWin(1)-1)./sampleFreq;
         Tboot(jj,2) = -mins;
         Tboot(jj,3) = max(meanTrace(maxWin))-min(meanTrace(minWin));
     end
+    baseLatStats.mean(ii) = mean(LatBoot);
+    baseLatStats.sem(ii) = std(LatBoot);
+    baseLatStats.ci(ii,:) = [quantile(LatBoot,alpha/2),quantile(LatBoot,1-alpha/2)];
     %figure();histogram(Tboot);
     for ll=1:numStats
-        baselineStats(ll).prctile(ii) = quantile(Tboot(:,ll),1-1/100);
-        baselineStats(ll).mean(ii) = mean(Tboot(:,ll));
-        baselineStats(ll).stdError(ii) = std(Tboot(:,ll));
-        baselineStats(ll).latency(ii) = mean(Latency(:,ll));
-        baselineStats(ll).latencySEM(ii) = std(Latency(:,ll));
+        baseStats(ll).ci(ii,:) = [quantile(Tboot(:,ll),alpha/2),quantile(Tboot(:,ll),1-alpha/2)];
+        baseStats(ll).mean(ii) = mean(Tboot(:,ll));
+        baseStats(ll).stdError(ii) = std(Tboot(:,ll));
+        baseStats(ll).latency(ii) = mean(Latency(:,ll));
+        baseStats(ll).latencySEM(ii) = std(Latency(:,ll));
     end
 end
 
 
-% WALD TEST - VEP magnitude significantly greater in presence of a stimulus
-%  than in the absence of a stimulus
-significantStimuli = zeros(numChans,numStimuli*numRadii,numStats);
-alpha = 0.05/(numStimuli*numRadii);
+% CI test (something like a non-parametric Wald test) ... for the deviation
+%  from a uniform distribution (of latency to peak negativity times)
+
+% CI test ... for VEP magnitude, given 95% confidence intervals
+significantStimuli = zeros(numChans,numStimuli*numRadii,2);
 c = norminv(1-alpha,0,1);
 for ii=1:numChans
     for jj=1:numStimuli*numRadii
-        for ll=1:numStats
-            W = (dataStats(ll).mean(ii,jj)-baselineStats(ll).mean(ii))...
-                /sqrt(dataStats(ll).stdError(ii,jj)^2+baselineStats(ll).stdError(ii)^2);
-            if W > c
-                significantStimuli(ii,jj,ll) = dataStats(ll).mean(ii,jj); % or equals W itself
-            end
+        if LatencyStats.ci(ii,jj,1) > baseLatStats.ci(ii,2)
+            significantStimuli(ii,jj,1) = 1;
+        end
+%         W = (dataStats(2).mean(ii,jj)-baseStats(2).mean(ii))/...
+%             sqrt(dataStats(2).stdError(ii,jj)^2+baseStats(2).stdError(ii)^2);
+%         if W > c
+%             significantStimuli(ii,jj,2) = 1;
+%         end
+        if dataStats(3).ci(ii,jj,1) > baseStats(3).ci(ii,2) && dataStats(1).latency(ii,jj) > dataStats(2).latency(ii,jj)
+            significantStimuli(ii,jj,2) = 1;
         end
     end    
 end
+
 
 if Channel == 1
     chans = {'Target','Off-Target'};
@@ -201,13 +246,12 @@ else
     chans = {'Off-Target','Target'};
 end
 
-maxVEP = max(max(dataStats(3).mean));
 % GRAPHS OF RESPONSES
 h = figure();
-count = 1;order = [1,2,5,6,3,4,7,8];
+count = 1;order = [1,2,3,7,8,9,4,5,6,10,11,12];
 for ii=1:numChans
     for jj=1:numStimuli
-        figure(h);subplot(4,2,order(count));
+        figure(h);subplot(4,3,order(count));
         members = Radii(:,2) == jj;
         for kk=1:numStats
             cms = (Radii(members,1)).*mmPerPixel./10;
@@ -233,13 +277,27 @@ for ii=1:numChans
         ax.XTickLabel = [2^(log2(sortedDegs(1))-1),sortedDegs,2^(log2(sortedDegs(end))+1)];
         count = count+1;
    
-        figure(h);subplot(4,2,order(count));
+        figure(h);subplot(4,3,order(count));
         VEP = squeeze(meanResponse(ii,members,:));
-        sortedVEP = VEP(indeces,:);
+        LAT = squeeze(dataStats(2).latency(ii,members));
+        MIN = squeeze(dataStats(2).mean(ii,members));
+        SIGNIFS = squeeze(significantStimuli(ii,members,:));
+        
+        VEP = VEP(indeces,:);
+        LAT = LAT(indeces);
+        MIN = -MIN(indeces);
+        SIGNIFS = SIGNIFS(indeces,:);
         shift = 250;
         for kk=1:length(indeces)
-            plot(1:stimLen,sortedVEP(kk,:)+shift*(kk),'LineWidth',2);
+            plot(1:stimLen,VEP(kk,:)+shift*kk,'LineWidth',2);
             hold on;
+            if SIGNIFS(kk,1) == 1 
+                plot(LAT(kk)*sampleFreq,MIN(kk)+shift*kk+100,'m*');
+                hold on;
+            end
+            if SIGNIFS(kk,2) == 1
+                plot(LAT(kk)*sampleFreq,MIN(kk)+shift*kk+50,'c*');
+            end
         end
         title(sprintf('%s, Channel: %s, Animal: %d',Stimulus(jj).name,chans{ii},AnimalName));
         xlabel('Time from phase shift (milliseconds)');
@@ -250,13 +308,79 @@ for ii=1:numChans
         ax.YTickLabel = [2^(log2(sortedDegs(1))-1),sortedDegs,2^(log2(sortedDegs(end))+1)];
         count = count+1;
         
+        figure(h);subplot(4,3,order(count));
+        
+        for kk=1:numStats
+            Stats = squeeze(dataStats(kk).latency(ii,members)).*sampleFreq;
+            sortedStats = Stats(indeces);
+            Errors = squeeze(dataStats(kk).latencySEM(ii,members)).*sampleFreq;
+            sortedErrors = Errors(indeces);
+            errorbar(log2(sortedDegs),sortedStats,...
+                sortedErrors,dataStats(kk).specs,...
+                'LineWidth',2);
+            hold on;
+        end
+        title(sprintf('%s, Channel: %s, Animal: %d',Stimulus(jj).name,chans{ii},AnimalName));
+        xlabel('Radius (degrees of visual space [log scale])');
+        ylabel('Latency to Peak (milliseconds)')
+        legend(dataStats(1).name,dataStats(2).name,'Positivity - Negativity');
+        axis([(log2(sortedDegs(1))-1) (log2(sortedDegs(end))+1) 0 max(maxWin)+50]);
+        ax = gca;
+        ax.XTick = [log2(sortedDegs(1))-1,log2(sortedDegs),log2(sortedDegs(end))+1];
+        ax.XTickLabel = [2^(log2(sortedDegs(1))-1),sortedDegs,2^(log2(sortedDegs(end))+1)];
+        count = count+1;
+        
         clear indeces;
     end
 end
 savefig(h,sprintf('TargetSRP%d_%d.fig',Date,AnimalName));
 save(sprintf('TargetSRPConv%d_%d.mat',Date,AnimalName),'Response',...
-    'dataStats','baselineStats','significantStimuli','Stimulus','Radii',...
-    'mmPerPixel','DistToScreen','meanResponse');
+    'dataStats','baseStats','LatencyStats','baseLatStats','significantStimuli','Stimulus','Radii',...
+    'mmPerPixel','DistToScreen','meanResponse','Channel','numChans','numStimuli','numRadii','numStats');
+
+% fileList = dir('TargetSRPConv*.mat');
+% Latency = zeros(23,20);
+% sizes = zeros(23,20);
+% SizeErr = zeros(23,20);
+% LatErr = zeros(23,20);
+% for ii=1:23
+% load(fileList(ii).name);
+% Latency(ii,:) = reshape(dataStats(2).latency,[1,20]);
+% sizes(ii,:) = reshape(dataStats(2).mean,[1,20]);
+% SizeErr(ii,:) = reshape(dataStats(2).stdError,[1,20]);
+% LatErr(ii,:) = reshape(dataStats(2).latencySEM,[1,20]);
+% end
 end
+
+function [Fx] = eCDF(Data,win)
+%eCDF.m
+%   Creation of the empirical distribution function (empirical cumulative
+%   distribution function) for an array of Data
+%
+%INPUT: Data - the data as a vector
+%       OPTIONAL:
+%       alpha - confidence level for nonparametric 1-alpha confidence
+%         bands, defaults to 0.05 for a 95% confidence band
+%OUTPUT: Fx - the empirical distribution function
+%        x - the points at which Fx is calculated
+
+%Created: 2016/07/09
+%  Byron Price
+%Updated: 2016/09/07
+%By: Byron Price
+
+n = length(Data);
+Fx = zeros(length(win),1);
+Data = sort(Data);
+
+count = 1;
+for ii=win
+    Fx(count) = sum(Data<=ii)/n;
+    count = count+1;
+end
+
+end
+
+
 
 
