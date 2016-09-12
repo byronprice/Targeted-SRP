@@ -69,8 +69,9 @@ if length(timeStamps) ~= dataLength
 end
 strobeTimes = tsevs{1,strobeStart};
 stimLen = round(0.3*sampleFreq); % 200 milliseconds
-LatWin = round(0.04*sampleFreq):round(0.15*sampleFreq);
-minWin = round(0.04*sampleFreq):round(0.19*sampleFreq);
+LatWin = round(0.05*sampleFreq):round(0.2*sampleFreq);
+LatWinBase = round(0.04*sampleFreq):round(0.2*sampleFreq);
+minWin = round(0.05*sampleFreq):round(0.2*sampleFreq);
 maxWin = round(.1*sampleFreq):1:round(0.25*sampleFreq);
 smoothKernel = 4;
 alpha = 0.05;
@@ -95,13 +96,13 @@ for ii=1:numChans
 end
 
 LatencyStats = struct;
-[~,temp] = min(Response(:,:,:,LatWin),[],4);
-LatencyStats.mag = mean(Response(:,:,:,round(0.02*sampleFreq):round(0.04*sampleFreq)),4)-min(Response(:,:,:,LatWin),[],4);
-LatencyStats.trials = (temp+LatWin(1)-1)./sampleFreq;
+[vals,temp] = min(Response(:,:,:,LatWinBase),[],4);
+LatencyStats.mag = -vals;
+LatencyStats.trials = (temp+LatWinBase(1)-1)./sampleFreq;
 LatencyStats.mean = zeros(numChans,numStimuli*numRadii);
 LatencyStats.sem = zeros(numChans,numStimuli*numRadii);
 LatencyStats.ci = zeros(numChans,numStimuli*numRadii,2);
-LatFun = @(x,win) max(abs(eCDF(x.*sampleFreq,win)-linspace(0,1,length(win))')); %mad(x,1);
+LatFun = @(x,win) max(eCDF(x.*sampleFreq,win)-linspace(0,1,length(win))'); %mad(x,1);
 
 % STATISTICS OF INTEREST are T1 = min(meanResponse), T2 =
 % max(meanResponse), T3 = max-min (meanResponse)
@@ -132,11 +133,15 @@ for ii=1:numChans
         Latency = zeros(N,numStats);
         
         LatBoot = zeros(N,1);
-        LatencyStats.mean(ii,jj) = LatFun(squeeze(LatencyStats.trials(ii,jj,:)),LatWin);
+        x = squeeze(LatencyStats.trials(ii,jj,:));
+        x = x(x>=0.05);
+        LatLen = length(x);
+        LatencyStats.mean(ii,jj) = LatFun(x,LatWin);
         for mm=1:N
-            indeces = random('Discrete Uniform',reps,[reps,1]);
-            LatGroup = squeeze(LatencyStats.trials(ii,jj,indeces));
+            inds = random('Discrete Uniform',LatLen,[LatLen,1]);
+            LatGroup = squeeze(LatencyStats.trials(ii,jj,inds));
             LatBoot(mm) = LatFun(LatGroup,LatWin);
+            indeces = random('Discrete Uniform',reps,[reps,1]);
             group = squeeze(Response(ii,jj,indeces,:));
             meanGroup = mean(group,1);
             [Tboot(mm,1),maxLats] = max(meanGroup(maxWin));
@@ -192,8 +197,9 @@ for ii=1:numChans
         for kk=1:reps
             temp(kk,:) = ChanData(index+indeces(kk):index+indeces(kk)+stimLen-1,ii);
         end
-        [~,minLats] = min(temp(:,LatWin),[],2);
-        minLats = (minLats+LatWin(1)-1)./sampleFreq;
+        [~,minLats] = min(temp(:,LatWinBase),[],2);
+        minLats = (minLats+LatWinBase(1)-1)./sampleFreq;
+        minLats = minLats(minLats>=0.05);
         LatBoot(jj) = LatFun(minLats,LatWin);
         meanTrace = mean(temp,1);
         [Tboot(jj,1),maxLats] = max(meanTrace(maxWin));
