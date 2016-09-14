@@ -42,7 +42,6 @@ if nargin < 2
 end
 
 reps = reps-mod(reps,blocks);
-orientation = orientation*pi/180;
 phaseShift = phaseShift*pi/180;
 
 Date = datetime('today','Format','yyyy-MM-dd');
@@ -94,6 +93,7 @@ for ii=1:numRadii
 end
 degreeRadii = reshape(degreeRadii',[numStimuli*numRadii,1]);
 
+orientations = linspace(0,165,numStimuli*numRadii).*pi./180;
 % perform unit conversions
 Radii(:,1) = (tan(degreeRadii(:,1).*pi./180).*(DistToScreen*10)).*conv_factor; % get number of pixels
      % that degreeRadius degrees of visual space will occupy
@@ -102,6 +102,7 @@ for ii=1:numStimuli*numRadii
     for jj=1:50
         indeces = randperm(numRadii*numStimuli,numRadii*numStimuli);
         Radii = Radii(indeces,:);
+        orientations = orientations(indeces);
     end
 end
 
@@ -111,7 +112,6 @@ spatFreq = 1/temp;clear temp;
 centerVals = zeros(2,1);
 centerVals(1) = centerMass.x(Channel);centerVals(2) = centerMass.y(Channel);
 
-orientations = linspace(0,165,numStimuli*numRadii);
 alpha = ones(numStimuli*numRadii,1);
 
 estimatedTime = ((stimTime*reps/blocks+holdTime)*blocks)*numRadii*numStimuli/60;
@@ -166,6 +166,7 @@ Stimulus = struct('name',cell(numStimuli,1));
 Stimulus(1).name = 'Gabor patch';
 Stimulus(2).name = 'Full-Field Grating with Grey Center';
 
+orientations = orientations.*180./pi;
 cd('~/CloudStation/ByronExp/SRP');
 fileName = sprintf('TargetSRP%d_%d.mat',Date,AnimalName);
 save(fileName,'centerVals','Radii','reps','stimTime','numStimuli',...
