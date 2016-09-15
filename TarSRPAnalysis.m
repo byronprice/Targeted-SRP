@@ -33,6 +33,8 @@ EphysFileName = strcat(EphysFileName,'.mat');
 load(EphysFileName)
 load(StimulusFileName)
 
+display(sprintf('Opening File: %s ...',EphysFileName'));
+
 sampleFreq = adfreq;
 
 
@@ -125,6 +127,7 @@ dataStats(2).mean = -mins;
 dataStats(3).mean = max(meanResponse(:,:,maxWin),[],3)-min(meanResponse(:,:,minWin),[],3);
 dataStats(3).latency = dataStats(1).latency-dataStats(2).latency;
 
+display('Getting bootstrap estimates of standard error ...');
 % BOOTSTRAP FOR STANDARD ERROR OF STATISTICS IN PRESENCE OF VISUAL STIMULI
 N = 2000;
 for ii=1:numChans
